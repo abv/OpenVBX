@@ -58,6 +58,9 @@ class TwimlDial {
 		elseif ($device_or_user instanceof VBX_Device) {
 			$dialed = $this->dialDevice($device_or_user);
 		}
+		else {
+			$dialed = $this->dialNumber($device_or_user);
+		}
 		
 		return $dialed;
 	}
@@ -133,6 +136,18 @@ class TwimlDial {
 			$this->response->append($dial);
 		}
 		return $dialed;
+	}
+	
+	/**
+	 * Dial a number directly, no special sauce here
+	 *
+	 * @param string $number 
+	 * @return bool
+	 */
+	public function dialNumber($number) {
+		$dialed = false;
+		$this->response->addDial($number);
+		return true;
 	}
 	
 	/**
@@ -284,12 +299,15 @@ class TwimlDial {
 	 * @return string json or std
 	 */
 	private function _get_state() {
+		$state = null;
 		if ($this->use_sessions) {
 			$CI =& get_instance();
 			$state = $CI->session->userdata($this->cookie_name);
 		}
 		else {
-			$state = $_COOKIE[$this->cookie_name];
+			if (!empty($_COOKIE[$this->cookie_name])) {
+				$state = $_COOKIE[$this->cookie_name];
+			}
 		}
 
 		return $state;

@@ -19,6 +19,9 @@
  **/
 
 var Client = {
+	// if we've detected no-flash, or flashblock, or ???
+	disabled: false,
+		
 	connection: false,
 	
 	// custom onready function for any plugins to extend
@@ -37,48 +40,53 @@ var Client = {
 	muted: false,
 		
 	options: {
-		cookie_name: 'vbx_client_call',
-		check_timeout: 5000 // how often the parent window should check client window status
+		cookie_name: 'vbx_client_call'
 	},
 	
 	init: function () {
-		Twilio.Device.setup(OpenVBX.client_capability);
+		try {
+			Twilio.Device.setup(OpenVBX.client_capability);
 
-		Twilio.Device.ready(function (device) {
-			Client.ready(device);
-		});
+			Twilio.Device.ready(function (device) {
+				Client.ready(device);
+			});
 		
-		Twilio.Device.offline(function (device) {
-			Client.offline(device);
-		});
+			Twilio.Device.offline(function (device) {
+				Client.offline(device);
+			});
 		
-		Twilio.Device.error(function (error) {
-			Client.error(error);
-		});
+			Twilio.Device.error(function (error) {
+				Client.error(error);
+			});
 		
-		Twilio.Device.connect(function (conn) {
-			Client.connect(conn);
-		});
+			Twilio.Device.connect(function (conn) {
+				Client.connect(conn);
+			});
 		
-		Twilio.Device.disconnect(function (conn) {
-			Client.disconnect(conn);
-		});
+			Twilio.Device.disconnect(function (conn) {
+				Client.disconnect(conn);
+			});
 		
-		Twilio.Device.incoming(function (conn) {
-			Client.incoming(conn);
-		});
+			Twilio.Device.incoming(function (conn) {
+				Client.incoming(conn);
+			});
 		
-		Twilio.Device.cancel(function(conn) {
-			Client.cancel();
-		});
+			Twilio.Device.cancel(function(conn) {
+				Client.cancel();
+			});
 		
-		$('#dialer #client-ui-actions button').hide();
+			$('#dialer #client-ui-actions button').hide();
+		}
+		catch (e) {
+			this.disabled = true;
+			// browser most likely doesn't have flash or is using a flash block application
+			Client.ui.disabledBanner(e);
+		}
 	}, 
 
 // Helpers
 	
 	message: function (status) {
-		// console.log(status);
 		$('#client-ui-message').text(status);
 	},
 	
@@ -121,13 +129,18 @@ var Client = {
 	},
 	
 	call: function (params) {
-		this.ui.toggleCallView('open');
-		this.connection = Twilio.Device.connect(params);
+		if (Twilio.Device.status() == 'ready') {
+			this.ui.toggleCallView('open');
+			this.connection = Twilio.Device.connect(params);
+		}
 	},
 
 	hangup: function () {
 		if (this.connection) {
 			this.connection.disconnect();
+		}
+		else {
+			this.ui.toggleCallView('close');
 		}
 	},
 	
@@ -167,6 +180,11 @@ var Client = {
 	},
 	
 	clear_connection: function() {
+		if (this.connection) {
+			// force drop the connection (happens during error handling)
+			this.connection.disconnect(function(){});
+			this.connection.disconnect();
+		}
 		this.connection = null;
 	},
 	
@@ -196,7 +214,7 @@ var Client = {
 		this.message(incoming_message);
 		
 		// Show UI
-		Client.ui.hide_actions('.hangup, .mute');
+		Client.ui.hide_actions('button');
 		Client.ui.show_actions('.answer');
 		Client.ui.toggleCallView('open');
 	},
@@ -214,7 +232,9 @@ var Client = {
 		this.message(connection_message);
 		
 		clearTimeout(this.close_timeout);
-		clearTimeout(this.incoming_timeout);		
+		clearTimeout(this.incoming_timeout);
+
+		this.ui.hide_actions('.answer');		
 	}, 
 
 	error: function (error) {
@@ -227,13 +247,15 @@ var Client = {
 		
 		// unset connection reference
 		this.clear_connection();
+		this.ui.hide_actions('button');
+		this.ui.show_actions('.close');
 	},
 
 	connect: function (connection) {
 		Twilio.Device.sounds.incoming(false);
 		
 		this.ui.startTick();
-		this.ui.hide_actions('.answer');
+		this.ui.hide_actions('button');
 		this.ui.show_actions('.hangup, .mute');
 
 		var message = 'Call in Progress';
@@ -256,7 +278,7 @@ var Client = {
 			
 			// reset ui
 			this.ui.endTick();
-			this.ui.hide_actions('.answer, .hangup, .mute');
+			this.ui.hide_actions('button');
 			this.status.setCallStatus(false);
 			this.message('Call ended');
 		
@@ -306,7 +328,7 @@ Client.ui = {
 		// force reset all conditions
 		Client.message('Ready');
 		this.toggleCallView('close');
-		this.hide_actions('.answer, .mute, .hangup');
+		this.hide_actions('button');
 		this.endTick();
 	},
 
@@ -426,6 +448,13 @@ Client.ui = {
 				}
 			});
 		}
+	},
+	
+// banner to show that client is disabled
+	disabledBanner: function(exception) {
+		var err_message = '<p><b>An error has occurred while initializing the Phone Client:</b><br />' +
+							exception.message + '</p>';
+		$('body').append($('<div id="client-error"><div>' + err_message + '</div></div>'));
 	}
 };
 
@@ -490,7 +519,7 @@ $(function () {
 		Client.answer();
 	});
 
-	$('#client-ui-hangup').live('click', function(event) {
+	$('#client-ui-hangup, #client-ui-close').live('click', function(event) {
 		event.preventDefault();
 		event.stopPropagation();
 		Client.hangup();
