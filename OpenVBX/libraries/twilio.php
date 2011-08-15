@@ -417,7 +417,7 @@
 	class Dial extends Verb {
 
 		protected $valid = array('action','method','timeout','hangupOnStar',
-			'timeLimit','callerId');
+			'timeLimit','callerId','record');
 
 		protected $nesting = array('Number','Conference', 'Client');
 

@@ -38,7 +38,7 @@ $config['site_rev'] = 1009;
 | you're developing, you'll want to see the plain javascript for debugging.
 |
 */
-$config['use_unminimized_js'] = FALSE;
+$config['use_unminimized_js'] = TRUE;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,7 +49,7 @@ $config['use_unminimized_js'] = FALSE;
 | you're developing, you'll want to see the plain javascript for debugging.
 |
 */
-$config['use_unminimized_css'] = FALSE;
+$config['use_unminimized_css'] = TRUE;
 
 /*
 |--------------------------------------------------------------------------
@@ -266,7 +266,7 @@ $config['directory_trigger'] 	= 'd'; // experimental not currently in use
 | your log files will fill up very fast.
 |
 */
-$config['log_threshold'] = 1;
+$config['log_threshold'] = 4;
 
 /*
 |--------------------------------------------------------------------------
